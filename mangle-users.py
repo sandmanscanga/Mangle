@@ -2,27 +2,31 @@
 import random
 
 
-def mangle(name1, name2, domain=None):
+def mangle(name1, name2, domainonly, domain=None):
     """Mangle a pair of names"""
 
     mangled = []
 
-    mangled.append(f"{name1}{name2}")
-    mangled.append(f"{name1}.{name2}")
     if domain is not None:
         mangled.append(f"{name1}{name2}@{domain}")
         mangled.append(f"{name1}.{name2}@{domain}")
 
+    onlydomains = domain is not None and domainonly is True
+
+    if not onlydomains:
+        mangled.append(f"{name1}{name2}")
+        mangled.append(f"{name1}.{name2}")
+
     return mangled
 
 
-def mangle_combo(name1, name2, domain=None):
+def mangle_combo(name1, name2, domainonly, domain=None):
     """Mangles a name combination excluding duplicate initials"""
 
     mangled_combo = []
     both_are_initials = len(name1) == 1 and len(name2) == 1
     if both_are_initials is False:
-        mangled = mangle(name1, name2, domain=domain)
+        mangled = mangle(name1, name2, domainonly, domain=domain)
         mangled_combo.extend(mangled)
 
     return mangled_combo
@@ -42,13 +46,18 @@ def get_name_combos(name, uppercase):
     return combos
 
 
-def mangle_bulk(name1, name2, uppercase, domain=None):
+def mangle_bulk(name1, name2, uppercase, domainonly, domain=None):
     """Mangles all combinations of users"""
 
     mangled_bulk = []
     for name1_combo in get_name_combos(name1, uppercase):
         for name2_combo in get_name_combos(name2, uppercase):
-            mangled = mangle_combo(name1_combo, name2_combo, domain=domain)
+            mangled = mangle_combo(
+                name1_combo,
+                name2_combo,
+                domainonly,
+                domain=domain
+            )
             mangled_bulk.extend(mangled)
 
     return mangled_bulk
@@ -68,16 +77,22 @@ def main(args):
             firstname,
             lastname,
             args.uppercase,
-            domain=args.domain
+            args.domainonly,
+            domain=args.domain,
         )
         last_first_mangled = mangle_bulk(
             lastname,
             firstname,
             args.uppercase,
+            args.domainonly,
             domain=args.domain
         )
         mangled.extend(first_last_mangled)
         mangled.extend(last_first_mangled)
+
+    # Remove case-insensitive duplicates
+    if args.unique is True:
+        mangled = list({name.lower() for name in mangled})
 
     # Sort mangled results
     if args.sort is True:
@@ -104,11 +119,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-d", "--domain",
         required=False,
-        help="specify email domain to add as mangled suffix")
+        help="specify email domain to add as mangled suffix"
+    )
     parser.add_argument(
-        "-u", "--uppercase",
+        "-D", "--domainonly",
         action="store_true",
-        help="specify uppercase flag to include mangled uppercase users"
+        help="specify domain only flag to only include domain mangled users"
     )
     group1 = parser.add_mutually_exclusive_group()
     group1.add_argument(
@@ -120,6 +136,17 @@ if __name__ == "__main__":
         "-r", "--random",
         action="store_true",
         help="specify random flag to randomize mangled users"
+    )
+    group2 = parser.add_mutually_exclusive_group()
+    group2.add_argument(
+        "-U", "--uppercase",
+        action="store_true",
+        help="specify uppercase flag to include mangled uppercase users"
+    )
+    group2.add_argument(
+        "-u", "--unique",
+        action="store_true",
+        help="specify unique flag to remove all case-insensitive duplicates"
     )
     parser.add_argument(
         "-o", "--outfile",
